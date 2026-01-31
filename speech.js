@@ -1,4 +1,4 @@
-// Speech Recognition Module for Voice-Controlled Pacman
+// Speech Recognition Module for Voice-Controlled Fireboy & Watergirl
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -27,7 +27,6 @@ function initSpeechRecognition() {
 
     recognition.onend = function() {
         console.log('Speech recognition ended');
-        // Auto-restart if we should still be listening
         if (isListening) {
             try {
                 recognition.start();
@@ -45,7 +44,6 @@ function initSpeechRecognition() {
             alert('Microphone access denied. Please allow microphone access to use voice controls.');
             stopListening();
         } else if (event.error === 'no-speech') {
-            // This is normal, just continue listening
             console.log('No speech detected, continuing...');
         }
     };
@@ -64,23 +62,31 @@ function initSpeechRecognition() {
 
 // Handle recognized command
 function handleCommand(text) {
-    let command = null;
+    let character = null;
+    let action = null;
 
-    if (text.includes('up') || text.includes('app') || text.includes('of')) {
-        command = 'up';
-    } else if (text.includes('down') || text.includes('dawn')) {
-        command = 'down';
-    } else if (text.includes('left') || text.includes('laugh')) {
-        command = 'left';
-    } else if (text.includes('right') || text.includes('write') || text.includes('wright')) {
-        command = 'right';
-    } else if (text.includes('stop') || text.includes('top') || text.includes('pause')) {
-        command = 'stop';
+    // Detect character
+    if (text.includes('fire') || text.includes('red') || text.includes('boy')) {
+        character = 'fire';
+    } else if (text.includes('water') || text.includes('blue') || text.includes('girl')) {
+        character = 'water';
     }
 
-    if (command && onCommandCallback) {
+    // Detect action
+    if (text.includes('up') || text.includes('jump') || text.includes('hop')) {
+        action = 'jump';
+    } else if (text.includes('left')) {
+        action = 'left';
+    } else if (text.includes('right') || text.includes('write')) {
+        action = 'right';
+    } else if (text.includes('stop') || text.includes('halt')) {
+        action = 'stop';
+    }
+
+    if (character && action && onCommandCallback) {
+        const command = { character, action };
         onCommandCallback(command);
-        updateCommandDisplay(command);
+        updateCommandDisplay(`${character} ${action}`);
     }
 }
 
@@ -139,9 +145,8 @@ function updateCommandDisplay(command) {
     const commandValue = document.getElementById('command-value');
     commandValue.textContent = command || 'None';
 
-    // Add flash animation
     commandValue.classList.remove('active');
-    void commandValue.offsetWidth; // Trigger reflow
+    void commandValue.offsetWidth;
     commandValue.classList.add('active');
 }
 

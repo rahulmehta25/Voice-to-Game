@@ -17,18 +17,21 @@ body {
 #game-container {
     text-align: center;
     padding: 20px;
-    max-width: 500px;
+    max-width: 700px;
     width: 100%;
 }
 
 #game-header {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
 #game-title {
     font-size: 2rem;
-    color: #ffeb3b;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    background: linear-gradient(90deg, #ff6b35, #4fc3f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
     margin-bottom: 15px;
 }
 
@@ -41,16 +44,16 @@ body {
     border-radius: 10px;
 }
 
-#score-display {
+#level-display {
     font-size: 1.2rem;
 }
 
-#score-label {
+#level-label {
     color: #aaa;
     margin-right: 8px;
 }
 
-#score-value {
+#level-value {
     color: #4caf50;
     font-weight: bold;
     font-size: 1.4rem;
@@ -95,9 +98,9 @@ body {
 
 #command-display {
     background: rgba(255, 255, 255, 0.1);
-    padding: 10px 20px;
+    padding: 8px 20px;
     border-radius: 10px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     font-size: 1.1rem;
 }
 
@@ -126,8 +129,24 @@ body {
     }
 }
 
+#instructions-bar {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+}
+
+#fire-instructions {
+    color: #ff6b35;
+}
+
+#water-instructions {
+    color: #4fc3f7;
+}
+
 #game-canvas {
-    background: #000;
+    background: #2d2d44;
     border: 4px solid #3f51b5;
     border-radius: 8px;
     display: block;
@@ -136,17 +155,18 @@ body {
 
 #game-overlay,
 #game-over-overlay,
-#win-overlay {
+#win-overlay,
+#game-complete-overlay {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.95);
     padding: 30px 40px;
     border-radius: 15px;
     border: 3px solid #3f51b5;
     z-index: 10;
-    min-width: 300px;
+    min-width: 320px;
 }
 
 .hidden {
@@ -159,40 +179,57 @@ body {
 
 #overlay-title,
 #game-over-title,
-#win-title {
+#win-title,
+#game-complete-title {
     font-size: 1.8rem;
-    color: #ffeb3b;
     margin-bottom: 15px;
+}
+
+#overlay-title {
+    background: linear-gradient(90deg, #ff6b35, #4fc3f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+#game-over-title {
+    color: #f44336;
+}
+
+#win-title,
+#game-complete-title {
+    color: #4caf50;
 }
 
 #overlay-instructions {
     font-size: 1.1rem;
     color: #ccc;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
 }
 
 #overlay-commands {
-    font-size: 0.95rem;
-    color: #03a9f4;
     margin-bottom: 20px;
 }
 
-#final-score-text,
-#win-score-text {
-    font-size: 1.3rem;
+#fire-cmd {
+    color: #ff6b35;
+    margin-bottom: 5px;
+}
+
+#water-cmd {
+    color: #4fc3f7;
+}
+
+#game-over-reason,
+#game-complete-text {
     color: #ccc;
     margin-bottom: 20px;
 }
 
-#final-score,
-#win-score {
-    color: #4caf50;
-    font-weight: bold;
-}
-
 #start-button,
 #restart-button,
-#win-restart-button {
+#next-level-button,
+#play-again-button {
     background: linear-gradient(135deg, #4caf50, #45a049);
     color: #fff;
     border: none;
@@ -205,19 +242,21 @@ body {
 
 #start-button:hover,
 #restart-button:hover,
-#win-restart-button:hover {
+#next-level-button:hover,
+#play-again-button:hover {
     transform: scale(1.05);
     box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
 }
 
 #start-button:active,
 #restart-button:active,
-#win-restart-button:active {
+#next-level-button:active,
+#play-again-button:active {
     transform: scale(0.98);
 }
 
 #game-footer {
-    margin-top: 20px;
+    margin-top: 15px;
 }
 
 #footer-text {
@@ -225,11 +264,10 @@ body {
     font-size: 0.9rem;
 }
 
-/* Responsive adjustments */
-@media (max-width: 450px) {
+@media (max-width: 650px) {
     #game-canvas {
-        width: 320px;
-        height: 320px;
+        width: 100%;
+        height: auto;
     }
 
     #game-title {
@@ -239,5 +277,10 @@ body {
     #status-bar {
         flex-direction: column;
         gap: 10px;
+    }
+
+    #instructions-bar {
+        flex-direction: column;
+        gap: 5px;
     }
 }

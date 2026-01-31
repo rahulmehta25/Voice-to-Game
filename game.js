@@ -1,501 +1,480 @@
-// Game Logic for Voice-Controlled Pacman
+// Game Logic for Voice-Controlled Fireboy & Watergirl
 
-// Game constants
-const CELL_SIZE = 20;
-const GRID_SIZE = 20;
-const CANVAS_SIZE = CELL_SIZE * GRID_SIZE;
+const CANVAS_WIDTH = 600;
+const CANVAS_HEIGHT = 400;
+const TILE_SIZE = 40;
+const GRAVITY = 0.5;
+const JUMP_FORCE = -12;
+const MOVE_SPEED = 4;
 
-// Game state
 let canvas, ctx;
 let gameRunning = false;
-let score = 0;
-let direction = null;
-let nextDirection = null;
-let pacman = { x: 1, y: 1 };
-let ghosts = [];
-let dots = [];
-let powerPellets = [];
+let currentLevel = 0;
 let animationId = null;
-let lastMoveTime = 0;
-let moveInterval = 150; // ms between moves
-let ghostMoveInterval = 200;
-let lastGhostMoveTime = 0;
-let pacmanMouthOpen = true;
-let mouthAnimationTime = 0;
 
-// Maze definition (0 = path, 1 = wall)
-const maze = [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,1],
-    [1,0,1,1,0,1,1,1,0,1,1,0,1,1,1,0,1,1,0,1],
-    [1,0,1,1,0,1,1,1,0,1,1,0,1,1,1,0,1,1,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,1,1,0,1,0,1,1,1,1,1,1,0,1,0,1,1,0,1],
-    [1,0,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,0,1],
-    [1,1,1,1,0,1,1,1,0,1,1,0,1,1,1,0,1,1,1,1],
-    [1,1,1,1,0,1,0,0,0,0,0,0,0,0,1,0,1,1,1,1],
-    [1,1,1,1,0,1,0,1,1,0,0,1,1,0,1,0,1,1,1,1],
-    [0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0],
-    [1,1,1,1,0,1,0,1,1,1,1,1,1,0,1,0,1,1,1,1],
-    [1,1,1,1,0,1,0,0,0,0,0,0,0,0,1,0,1,1,1,1],
-    [1,1,1,1,0,1,0,1,1,1,1,1,1,0,1,0,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,1],
-    [1,0,1,1,0,1,1,1,0,1,1,0,1,1,1,0,1,1,0,1],
-    [1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1],
-    [1,1,0,1,0,1,0,1,1,1,1,1,1,0,1,0,1,0,1,1],
-    [1,0,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+// Characters
+let fireboy = null;
+let watergirl = null;
+
+// Level elements
+let platforms = [];
+let firePools = [];
+let waterPools = [];
+let fireExit = null;
+let waterExit = null;
+
+// Level definitions - very simple stages
+const levels = [
+    // Level 1: Simple introduction
+    {
+        fireStart: { x: 50, y: 320 },
+        waterStart: { x: 120, y: 320 },
+        fireExit: { x: 500, y: 320 },
+        waterExit: { x: 500, y: 240 },
+        platforms: [
+            { x: 0, y: 360, w: 600, h: 40 },      // Ground
+            { x: 480, y: 280, w: 120, h: 20 },    // Upper platform for water exit
+            { x: 300, y: 320, w: 100, h: 20 },    // Middle step
+        ],
+        firePools: [
+            { x: 200, y: 350, w: 60, h: 10 }      // Small fire pool
+        ],
+        waterPools: [
+            { x: 400, y: 350, w: 60, h: 10 }      // Small water pool
+        ]
+    },
+    // Level 2: Jumping required
+    {
+        fireStart: { x: 50, y: 320 },
+        waterStart: { x: 50, y: 200 },
+        fireExit: { x: 520, y: 320 },
+        waterExit: { x: 520, y: 120 },
+        platforms: [
+            { x: 0, y: 360, w: 600, h: 40 },      // Ground
+            { x: 0, y: 240, w: 150, h: 20 },      // Left upper platform
+            { x: 200, y: 200, w: 100, h: 20 },    // Middle upper
+            { x: 350, y: 160, w: 250, h: 20 },    // Right upper
+            { x: 250, y: 320, w: 80, h: 20 },     // Lower step
+        ],
+        firePools: [
+            { x: 150, y: 350, w: 80, h: 10 }
+        ],
+        waterPools: [
+            { x: 370, y: 350, w: 80, h: 10 }
+        ]
+    },
+    // Level 3: More complex
+    {
+        fireStart: { x: 50, y: 120 },
+        waterStart: { x: 520, y: 120 },
+        fireExit: { x: 520, y: 320 },
+        waterExit: { x: 50, y: 320 },
+        platforms: [
+            { x: 0, y: 360, w: 600, h: 40 },      // Ground
+            { x: 0, y: 160, w: 120, h: 20 },      // Top left
+            { x: 480, y: 160, w: 120, h: 20 },    // Top right
+            { x: 200, y: 200, w: 200, h: 20 },    // Middle platform
+            { x: 100, y: 280, w: 100, h: 20 },    // Lower left
+            { x: 400, y: 280, w: 100, h: 20 },    // Lower right
+        ],
+        firePools: [
+            { x: 0, y: 350, w: 100, h: 10 },
+            { x: 250, y: 350, w: 100, h: 10 }
+        ],
+        waterPools: [
+            { x: 500, y: 350, w: 100, h: 10 },
+            { x: 150, y: 350, w: 80, h: 10 }
+        ]
+    }
 ];
 
-// Ghost colors
-const ghostColors = ['#ff0000', '#00ffff', '#ffb8ff', '#ffb852'];
+// Character class
+class Character {
+    constructor(x, y, color, type) {
+        this.x = x;
+        this.y = y;
+        this.width = 30;
+        this.height = 40;
+        this.velX = 0;
+        this.velY = 0;
+        this.color = color;
+        this.type = type; // 'fire' or 'water'
+        this.onGround = false;
+        this.atExit = false;
+        this.movingLeft = false;
+        this.movingRight = false;
+    }
+
+    update() {
+        // Apply gravity
+        this.velY += GRAVITY;
+
+        // Apply horizontal movement
+        if (this.movingLeft) {
+            this.velX = -MOVE_SPEED;
+        } else if (this.movingRight) {
+            this.velX = MOVE_SPEED;
+        } else {
+            this.velX *= 0.8; // Friction
+            if (Math.abs(this.velX) < 0.1) this.velX = 0;
+        }
+
+        // Update position
+        this.x += this.velX;
+        this.y += this.velY;
+
+        // Check platform collisions
+        this.onGround = false;
+        platforms.forEach(plat => {
+            if (this.collidesWith(plat)) {
+                // Collision from above
+                if (this.velY > 0 && this.y + this.height - this.velY <= plat.y) {
+                    this.y = plat.y - this.height;
+                    this.velY = 0;
+                    this.onGround = true;
+                }
+                // Collision from below
+                else if (this.velY < 0 && this.y - this.velY >= plat.y + plat.h) {
+                    this.y = plat.y + plat.h;
+                    this.velY = 0;
+                }
+                // Collision from sides
+                else if (this.velX > 0) {
+                    this.x = plat.x - this.width;
+                } else if (this.velX < 0) {
+                    this.x = plat.x + plat.w;
+                }
+            }
+        });
+
+        // Screen bounds
+        if (this.x < 0) this.x = 0;
+        if (this.x + this.width > CANVAS_WIDTH) this.x = CANVAS_WIDTH - this.width;
+        if (this.y + this.height > CANVAS_HEIGHT) {
+            this.y = CANVAS_HEIGHT - this.height;
+            this.velY = 0;
+            this.onGround = true;
+        }
+    }
+
+    collidesWith(rect) {
+        return this.x < rect.x + rect.w &&
+               this.x + this.width > rect.x &&
+               this.y < rect.y + rect.h &&
+               this.y + this.height > rect.y;
+    }
+
+    collidesWithPool(pool) {
+        // Check if feet are in the pool
+        const feetY = this.y + this.height;
+        return this.x + this.width > pool.x &&
+               this.x < pool.x + pool.w &&
+               feetY > pool.y &&
+               feetY < pool.y + pool.h + 10;
+    }
+
+    jump() {
+        if (this.onGround) {
+            this.velY = JUMP_FORCE;
+            this.onGround = false;
+        }
+    }
+
+    draw() {
+        // Body
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        // Eyes
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(this.x + 6, this.y + 10, 8, 8);
+        ctx.fillRect(this.x + 16, this.y + 10, 8, 8);
+
+        // Pupils
+        ctx.fillStyle = '#000';
+        ctx.fillRect(this.x + 8, this.y + 12, 4, 4);
+        ctx.fillRect(this.x + 18, this.y + 12, 4, 4);
+
+        // Glow effect
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x + 2, this.y + 2, this.width - 4, 5);
+        ctx.shadowBlur = 0;
+    }
+}
 
 // Initialize the game
 function initGame() {
     canvas = document.getElementById('game-canvas');
     ctx = canvas.getContext('2d');
 
-    canvas.width = CANVAS_SIZE;
-    canvas.height = CANVAS_SIZE;
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
 
-    // Set up event listeners
+    // Event listeners
     document.getElementById('start-button').addEventListener('click', startGame);
-    document.getElementById('restart-button').addEventListener('click', restartGame);
-    document.getElementById('win-restart-button').addEventListener('click', restartGame);
+    document.getElementById('restart-button').addEventListener('click', restartLevel);
+    document.getElementById('next-level-button').addEventListener('click', nextLevel);
+    document.getElementById('play-again-button').addEventListener('click', playAgain);
 
     // Set up speech recognition callback
     setCommandCallback(handleVoiceCommand);
 
     // Draw initial state
-    drawMaze();
+    drawStartScreen();
+}
+
+// Draw start screen
+function drawStartScreen() {
+    ctx.fillStyle = '#2d2d44';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    ctx.font = '24px Arial';
+    ctx.fillStyle = '#ff6b35';
+    ctx.fillText('🔥 Fireboy', 180, 180);
+    ctx.fillStyle = '#4fc3f7';
+    ctx.fillText('💧 Watergirl', 320, 180);
 }
 
 // Start the game
 function startGame() {
     document.getElementById('game-overlay').classList.add('hidden');
-    document.getElementById('game-overlay').classList.remove('visible');
-
-    resetGameState();
+    currentLevel = 0;
+    loadLevel(currentLevel);
 
     if (startListening()) {
         gameRunning = true;
-        lastMoveTime = performance.now();
-        lastGhostMoveTime = performance.now();
         gameLoop();
     }
 }
 
-// Restart the game
-function restartGame() {
+// Load a level
+function loadLevel(levelIndex) {
+    const level = levels[levelIndex];
+
+    fireboy = new Character(level.fireStart.x, level.fireStart.y, '#ff6b35', 'fire');
+    watergirl = new Character(level.waterStart.x, level.waterStart.y, '#4fc3f7', 'water');
+
+    platforms = level.platforms.map(p => ({ ...p }));
+    firePools = level.firePools.map(p => ({ ...p }));
+    waterPools = level.waterPools.map(p => ({ ...p }));
+    fireExit = { ...level.fireExit, w: 40, h: 40 };
+    waterExit = { ...level.waterExit, w: 40, h: 40 };
+
+    document.getElementById('level-value').textContent = levelIndex + 1;
+}
+
+// Restart current level
+function restartLevel() {
     document.getElementById('game-over-overlay').classList.add('hidden');
-    document.getElementById('win-overlay').classList.add('hidden');
-
-    resetGameState();
+    loadLevel(currentLevel);
 
     if (startListening()) {
         gameRunning = true;
-        lastMoveTime = performance.now();
-        lastGhostMoveTime = performance.now();
         gameLoop();
     }
 }
 
-// Reset game state
-function resetGameState() {
-    score = 0;
-    direction = null;
-    nextDirection = null;
-    pacman = { x: 1, y: 1 };
+// Go to next level
+function nextLevel() {
+    document.getElementById('win-overlay').classList.add('hidden');
+    currentLevel++;
 
-    // Initialize ghosts
-    ghosts = [
-        { x: 9, y: 9, color: ghostColors[0], direction: 'up' },
-        { x: 10, y: 9, color: ghostColors[1], direction: 'up' },
-        { x: 9, y: 10, color: ghostColors[2], direction: 'down' },
-        { x: 10, y: 10, color: ghostColors[3], direction: 'down' }
-    ];
-
-    // Initialize dots
-    dots = [];
-    powerPellets = [];
-    for (let y = 0; y < GRID_SIZE; y++) {
-        for (let x = 0; x < GRID_SIZE; x++) {
-            if (maze[y][x] === 0) {
-                // Don't place dots on pacman's starting position or ghost house
-                if (!(x === 1 && y === 1) && !(x >= 8 && x <= 11 && y >= 9 && y <= 10)) {
-                    // Power pellets in corners
-                    if ((x === 1 && y === 1) || (x === 18 && y === 1) ||
-                        (x === 1 && y === 18) || (x === 18 && y === 18)) {
-                        powerPellets.push({ x, y });
-                    } else {
-                        dots.push({ x, y });
-                    }
-                }
-            }
-        }
+    if (currentLevel >= levels.length) {
+        // Game complete!
+        document.getElementById('game-complete-overlay').classList.remove('hidden');
+        return;
     }
 
-    // Add power pellets at corners (on valid paths)
-    powerPellets = [
-        { x: 1, y: 4 },
-        { x: 18, y: 4 },
-        { x: 1, y: 16 },
-        { x: 18, y: 16 }
-    ];
+    loadLevel(currentLevel);
 
-    updateScoreDisplay();
+    if (startListening()) {
+        gameRunning = true;
+        gameLoop();
+    }
+}
+
+// Play again from start
+function playAgain() {
+    document.getElementById('game-complete-overlay').classList.add('hidden');
+    currentLevel = 0;
+    loadLevel(currentLevel);
+
+    if (startListening()) {
+        gameRunning = true;
+        gameLoop();
+    }
 }
 
 // Handle voice commands
 function handleVoiceCommand(command) {
     if (!gameRunning) return;
 
-    if (command === 'stop') {
-        direction = null;
-        nextDirection = null;
-    } else {
-        nextDirection = command;
-    }
-}
+    const { character, action } = command;
 
-// Set direction (also called from speech.js)
-function setDirection(dir) {
-    if (dir === 'stop' || dir === null) {
-        direction = null;
-        nextDirection = null;
-    } else {
-        nextDirection = dir;
+    let target = null;
+    if (character === 'fire') {
+        target = fireboy;
+    } else if (character === 'water') {
+        target = watergirl;
+    }
+
+    if (!target) return;
+
+    switch (action) {
+        case 'jump':
+            target.jump();
+            break;
+        case 'left':
+            target.movingLeft = true;
+            target.movingRight = false;
+            break;
+        case 'right':
+            target.movingRight = true;
+            target.movingLeft = false;
+            break;
+        case 'stop':
+            target.movingLeft = false;
+            target.movingRight = false;
+            break;
     }
 }
 
 // Game loop
-function gameLoop(timestamp) {
+function gameLoop() {
     if (!gameRunning) return;
 
-    const now = timestamp || performance.now();
-
-    // Update pacman position
-    if (now - lastMoveTime >= moveInterval) {
-        movePacman();
-        lastMoveTime = now;
-    }
-
-    // Update ghost positions
-    if (now - lastGhostMoveTime >= ghostMoveInterval) {
-        moveGhosts();
-        lastGhostMoveTime = now;
-    }
-
-    // Animate pacman mouth
-    if (now - mouthAnimationTime >= 100) {
-        pacmanMouthOpen = !pacmanMouthOpen;
-        mouthAnimationTime = now;
-    }
-
-    // Check collisions
-    if (checkGhostCollision()) {
-        gameOver();
-        return;
-    }
-
-    // Check win condition
-    if (dots.length === 0) {
-        winGame();
-        return;
-    }
-
-    // Render
+    update();
     render();
 
     animationId = requestAnimationFrame(gameLoop);
 }
 
-// Move pacman
-function movePacman() {
-    // Try to change to next direction if set
-    if (nextDirection) {
-        const nextPos = getNextPosition(pacman, nextDirection);
-        if (!isWall(nextPos.x, nextPos.y)) {
-            direction = nextDirection;
+// Update game state
+function update() {
+    fireboy.update();
+    watergirl.update();
+
+    // Check hazards
+    // Fireboy dies in water
+    for (const pool of waterPools) {
+        if (fireboy.collidesWithPool(pool)) {
+            gameOver('Fireboy fell in water!');
+            return;
         }
     }
 
-    if (!direction) return;
-
-    const next = getNextPosition(pacman, direction);
-
-    // Handle tunnel wrap-around
-    if (next.x < 0) next.x = GRID_SIZE - 1;
-    if (next.x >= GRID_SIZE) next.x = 0;
-
-    if (!isWall(next.x, next.y)) {
-        pacman = next;
-        checkDotEaten();
-        checkPowerPelletEaten();
-    }
-}
-
-// Get next position based on direction
-function getNextPosition(pos, dir) {
-    const next = { x: pos.x, y: pos.y };
-    switch (dir) {
-        case 'up': next.y--; break;
-        case 'down': next.y++; break;
-        case 'left': next.x--; break;
-        case 'right': next.x++; break;
-    }
-    return next;
-}
-
-// Check if position is a wall
-function isWall(x, y) {
-    if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) {
-        // Allow horizontal tunnel
-        if (y === 10 && (x < 0 || x >= GRID_SIZE)) {
-            return false;
+    // Watergirl dies in fire
+    for (const pool of firePools) {
+        if (watergirl.collidesWithPool(pool)) {
+            gameOver('Watergirl fell in fire!');
+            return;
         }
-        return true;
     }
-    return maze[y][x] === 1;
-}
 
-// Check if dot is eaten
-function checkDotEaten() {
-    const dotIndex = dots.findIndex(d => d.x === pacman.x && d.y === pacman.y);
-    if (dotIndex !== -1) {
-        dots.splice(dotIndex, 1);
-        score += 10;
-        updateScoreDisplay();
+    // Check exits
+    fireboy.atExit = isAtExit(fireboy, fireExit);
+    watergirl.atExit = isAtExit(watergirl, waterExit);
+
+    // Win condition
+    if (fireboy.atExit && watergirl.atExit) {
+        levelComplete();
     }
 }
 
-// Check if power pellet is eaten
-function checkPowerPelletEaten() {
-    const pelletIndex = powerPellets.findIndex(p => p.x === pacman.x && p.y === pacman.y);
-    if (pelletIndex !== -1) {
-        powerPellets.splice(pelletIndex, 1);
-        score += 50;
-        updateScoreDisplay();
-    }
-}
-
-// Move ghosts
-function moveGhosts() {
-    ghosts.forEach(ghost => {
-        const directions = ['up', 'down', 'left', 'right'];
-        const validDirections = [];
-
-        // Find valid directions
-        directions.forEach(dir => {
-            const next = getNextPosition(ghost, dir);
-            if (!isWall(next.x, next.y) && next.x >= 0 && next.x < GRID_SIZE) {
-                // Prefer not to reverse direction
-                const opposite = getOppositeDirection(ghost.direction);
-                if (dir !== opposite || validDirections.length === 0) {
-                    validDirections.push(dir);
-                }
-            }
-        });
-
-        if (validDirections.length > 0) {
-            // Simple AI: sometimes chase pacman, sometimes move randomly
-            if (Math.random() < 0.3) {
-                // Chase mode - pick direction that gets closer to pacman
-                let bestDir = validDirections[0];
-                let bestDist = Infinity;
-                validDirections.forEach(dir => {
-                    const next = getNextPosition(ghost, dir);
-                    const dist = Math.abs(next.x - pacman.x) + Math.abs(next.y - pacman.y);
-                    if (dist < bestDist) {
-                        bestDist = dist;
-                        bestDir = dir;
-                    }
-                });
-                ghost.direction = bestDir;
-            } else {
-                // Random mode - but prefer continuing in same direction
-                const filtered = validDirections.filter(d => d !== getOppositeDirection(ghost.direction));
-                if (filtered.length > 0 && Math.random() < 0.7) {
-                    ghost.direction = filtered[Math.floor(Math.random() * filtered.length)];
-                } else {
-                    ghost.direction = validDirections[Math.floor(Math.random() * validDirections.length)];
-                }
-            }
-
-            const nextPos = getNextPosition(ghost, ghost.direction);
-            ghost.x = nextPos.x;
-            ghost.y = nextPos.y;
-        }
-    });
-}
-
-// Get opposite direction
-function getOppositeDirection(dir) {
-    switch (dir) {
-        case 'up': return 'down';
-        case 'down': return 'up';
-        case 'left': return 'right';
-        case 'right': return 'left';
-        default: return null;
-    }
-}
-
-// Check ghost collision
-function checkGhostCollision() {
-    return ghosts.some(ghost => ghost.x === pacman.x && ghost.y === pacman.y);
-}
-
-// Update score display
-function updateScoreDisplay() {
-    document.getElementById('score-value').textContent = score;
+// Check if character is at their exit
+function isAtExit(char, exit) {
+    return char.x + char.width > exit.x &&
+           char.x < exit.x + exit.w &&
+           char.y + char.height > exit.y &&
+           char.y < exit.y + exit.h;
 }
 
 // Render the game
 function render() {
-    ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    // Clear
+    ctx.fillStyle = '#2d2d44';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    drawMaze();
-    drawDots();
-    drawPowerPellets();
-    drawPacman();
-    drawGhosts();
-}
+    // Draw exits (behind everything)
+    drawExit(fireExit, '#ff6b35', '🚪');
+    drawExit(waterExit, '#4fc3f7', '🚪');
 
-// Draw the maze
-function drawMaze() {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    // Draw platforms
+    platforms.forEach(plat => {
+        ctx.fillStyle = '#5c5c7a';
+        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+        ctx.strokeStyle = '#7a7a9a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+    });
 
-    for (let y = 0; y < GRID_SIZE; y++) {
-        for (let x = 0; x < GRID_SIZE; x++) {
-            if (maze[y][x] === 1) {
-                ctx.fillStyle = '#1a237e';
-                ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-
-                // Draw wall border
-                ctx.strokeStyle = '#3f51b5';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(x * CELL_SIZE + 1, y * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2);
-            }
+    // Draw fire pools
+    firePools.forEach(pool => {
+        ctx.fillStyle = '#ff4500';
+        ctx.fillRect(pool.x, pool.y, pool.w, pool.h);
+        // Flame effect
+        for (let i = 0; i < pool.w; i += 10) {
+            const flameHeight = 5 + Math.sin(Date.now() / 100 + i) * 3;
+            ctx.fillStyle = '#ff6b35';
+            ctx.beginPath();
+            ctx.moveTo(pool.x + i, pool.y);
+            ctx.lineTo(pool.x + i + 5, pool.y - flameHeight);
+            ctx.lineTo(pool.x + i + 10, pool.y);
+            ctx.fill();
         }
+    });
+
+    // Draw water pools
+    waterPools.forEach(pool => {
+        ctx.fillStyle = '#0077be';
+        ctx.fillRect(pool.x, pool.y, pool.w, pool.h);
+        // Wave effect
+        ctx.fillStyle = '#4fc3f7';
+        for (let i = 0; i < pool.w; i += 15) {
+            const waveY = Math.sin(Date.now() / 200 + i / 10) * 2;
+            ctx.beginPath();
+            ctx.arc(pool.x + i + 7, pool.y + waveY, 4, 0, Math.PI, true);
+            ctx.fill();
+        }
+    });
+
+    // Draw characters
+    fireboy.draw();
+    watergirl.draw();
+
+    // Draw exit indicators if character is at exit
+    if (fireboy.atExit) {
+        drawCheckmark(fireExit);
+    }
+    if (watergirl.atExit) {
+        drawCheckmark(waterExit);
     }
 }
 
-// Draw dots
-function drawDots() {
-    ctx.fillStyle = '#ffeb3b';
-    dots.forEach(dot => {
-        ctx.beginPath();
-        ctx.arc(
-            dot.x * CELL_SIZE + CELL_SIZE / 2,
-            dot.y * CELL_SIZE + CELL_SIZE / 2,
-            3,
-            0,
-            Math.PI * 2
-        );
-        ctx.fill();
-    });
+// Draw exit door
+function drawExit(exit, color, emoji) {
+    ctx.fillStyle = color + '40'; // Semi-transparent
+    ctx.fillRect(exit.x, exit.y, exit.w, exit.h);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(exit.x, exit.y, exit.w, exit.h);
+
+    // Door icon
+    ctx.font = '24px Arial';
+    ctx.fillText(emoji, exit.x + 8, exit.y + 30);
 }
 
-// Draw power pellets
-function drawPowerPellets() {
-    ctx.fillStyle = '#ffeb3b';
-    powerPellets.forEach(pellet => {
-        ctx.beginPath();
-        ctx.arc(
-            pellet.x * CELL_SIZE + CELL_SIZE / 2,
-            pellet.y * CELL_SIZE + CELL_SIZE / 2,
-            6,
-            0,
-            Math.PI * 2
-        );
-        ctx.fill();
-    });
-}
-
-// Draw pacman
-function drawPacman() {
-    const centerX = pacman.x * CELL_SIZE + CELL_SIZE / 2;
-    const centerY = pacman.y * CELL_SIZE + CELL_SIZE / 2;
-    const radius = CELL_SIZE / 2 - 2;
-
-    ctx.fillStyle = '#ffeb3b';
-    ctx.beginPath();
-
-    // Calculate mouth angle based on direction
-    let startAngle = 0;
-    switch (direction) {
-        case 'right': startAngle = 0; break;
-        case 'down': startAngle = Math.PI / 2; break;
-        case 'left': startAngle = Math.PI; break;
-        case 'up': startAngle = -Math.PI / 2; break;
-        default: startAngle = 0;
-    }
-
-    const mouthAngle = pacmanMouthOpen ? 0.25 : 0.05;
-
-    ctx.arc(
-        centerX,
-        centerY,
-        radius,
-        startAngle + Math.PI * mouthAngle,
-        startAngle - Math.PI * mouthAngle
-    );
-    ctx.lineTo(centerX, centerY);
-    ctx.closePath();
-    ctx.fill();
-}
-
-// Draw ghosts
-function drawGhosts() {
-    ghosts.forEach(ghost => {
-        const x = ghost.x * CELL_SIZE;
-        const y = ghost.y * CELL_SIZE;
-        const size = CELL_SIZE - 4;
-        const centerX = x + CELL_SIZE / 2;
-        const centerY = y + CELL_SIZE / 2;
-
-        ctx.fillStyle = ghost.color;
-
-        // Ghost body (rounded top, wavy bottom)
-        ctx.beginPath();
-        ctx.arc(centerX, centerY - 2, size / 2, Math.PI, 0, false);
-        ctx.lineTo(centerX + size / 2, centerY + size / 2 - 2);
-
-        // Wavy bottom
-        const waveCount = 3;
-        const waveWidth = size / waveCount;
-        for (let i = 0; i < waveCount; i++) {
-            const waveX = centerX + size / 2 - (i + 1) * waveWidth;
-            ctx.quadraticCurveTo(
-                waveX + waveWidth / 2,
-                centerY + size / 2 + 3,
-                waveX,
-                centerY + size / 2 - 2
-            );
-        }
-
-        ctx.closePath();
-        ctx.fill();
-
-        // Eyes
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(centerX - 3, centerY - 3, 3, 0, Math.PI * 2);
-        ctx.arc(centerX + 3, centerY - 3, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Pupils
-        ctx.fillStyle = '#00f';
-        ctx.beginPath();
-        ctx.arc(centerX - 2, centerY - 3, 1.5, 0, Math.PI * 2);
-        ctx.arc(centerX + 4, centerY - 3, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-    });
+// Draw checkmark on exit
+function drawCheckmark(exit) {
+    ctx.fillStyle = '#4caf50';
+    ctx.font = '20px Arial';
+    ctx.fillText('✓', exit.x + exit.w - 20, exit.y + 15);
 }
 
 // Game over
-function gameOver() {
+function gameOver(reason) {
     gameRunning = false;
     stopListening();
 
@@ -503,12 +482,12 @@ function gameOver() {
         cancelAnimationFrame(animationId);
     }
 
-    document.getElementById('final-score').textContent = score;
+    document.getElementById('game-over-reason').textContent = reason;
     document.getElementById('game-over-overlay').classList.remove('hidden');
 }
 
-// Win game
-function winGame() {
+// Level complete
+function levelComplete() {
     gameRunning = false;
     stopListening();
 
@@ -516,7 +495,6 @@ function winGame() {
         cancelAnimationFrame(animationId);
     }
 
-    document.getElementById('win-score').textContent = score;
     document.getElementById('win-overlay').classList.remove('hidden');
 }
 

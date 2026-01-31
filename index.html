@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice-Controlled Pacman</title>
+    <title>Voice-Controlled Fireboy & Watergirl</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="game-container">
         <header id="game-header">
-            <h1 id="game-title">Voice-Controlled Pacman</h1>
+            <h1 id="game-title">Fireboy & Watergirl</h1>
             <div id="status-bar">
-                <div id="score-display">
-                    <span id="score-label">Score:</span>
-                    <span id="score-value">0</span>
+                <div id="level-display">
+                    <span id="level-label">Level:</span>
+                    <span id="level-value">1</span>
                 </div>
                 <div id="mic-status">
                     <span id="mic-icon">🎤</span>
@@ -28,36 +28,51 @@
                 <span id="command-value">None</span>
             </div>
 
-            <canvas id="game-canvas" width="400" height="400"></canvas>
+            <div id="instructions-bar">
+                <span id="fire-instructions">🔥 "Fire up/left/right"</span>
+                <span id="water-instructions">💧 "Water up/left/right"</span>
+            </div>
+
+            <canvas id="game-canvas" width="600" height="400"></canvas>
 
             <div id="game-overlay" class="visible">
                 <div id="overlay-content">
-                    <h2 id="overlay-title">Voice-Controlled Pacman</h2>
-                    <p id="overlay-instructions">Control Pacman with your voice!</p>
-                    <p id="overlay-commands">Say: "up", "down", "left", "right", or "stop"</p>
+                    <h2 id="overlay-title">Fireboy & Watergirl</h2>
+                    <p id="overlay-instructions">Control both characters with your voice!</p>
+                    <div id="overlay-commands">
+                        <p id="fire-cmd">🔥 Say "Fire up/left/right"</p>
+                        <p id="water-cmd">💧 Say "Water up/left/right"</p>
+                    </div>
                     <button id="start-button">Start Game</button>
                 </div>
             </div>
 
             <div id="game-over-overlay" class="hidden">
                 <div id="game-over-content">
-                    <h2 id="game-over-title">Game Over</h2>
-                    <p id="final-score-text">Final Score: <span id="final-score">0</span></p>
-                    <button id="restart-button">Play Again</button>
+                    <h2 id="game-over-title">Game Over!</h2>
+                    <p id="game-over-reason">A character touched the wrong element!</p>
+                    <button id="restart-button">Try Again</button>
                 </div>
             </div>
 
             <div id="win-overlay" class="hidden">
                 <div id="win-content">
-                    <h2 id="win-title">You Win!</h2>
-                    <p id="win-score-text">Final Score: <span id="win-score">0</span></p>
-                    <button id="win-restart-button">Play Again</button>
+                    <h2 id="win-title">Level Complete!</h2>
+                    <button id="next-level-button">Next Level</button>
+                </div>
+            </div>
+
+            <div id="game-complete-overlay" class="hidden">
+                <div id="game-complete-content">
+                    <h2 id="game-complete-title">You Win!</h2>
+                    <p id="game-complete-text">All levels completed!</p>
+                    <button id="play-again-button">Play Again</button>
                 </div>
             </div>
         </main>
 
         <footer id="game-footer">
-            <p id="footer-text">Speak clearly into your microphone to control Pacman</p>
+            <p id="footer-text">Both characters must reach their matching doors to complete each level</p>
         </footer>
     </div>
 
