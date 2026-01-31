@@ -25,66 +25,44 @@ let waterExit = null;
 
 // Level definitions - very simple stages
 const levels = [
-    // Level 1: Simple introduction
+    // Level 1: Super Easy - just walk to the exits (no hazards!)
     {
         fireStart: { x: 50, y: 320 },
-        waterStart: { x: 120, y: 320 },
-        fireExit: { x: 500, y: 320 },
+        waterStart: { x: 100, y: 320 },
+        fireExit: { x: 480, y: 320 },
+        waterExit: { x: 530, y: 320 },
+        platforms: [
+            { x: 0, y: 360, w: 600, h: 40 },      // Full ground - no gaps!
+        ],
+        firePools: [],   // No hazards
+        waterPools: []   // No hazards
+    },
+    // Level 2: Easy - one small jump, no hazards
+    {
+        fireStart: { x: 50, y: 320 },
+        waterStart: { x: 100, y: 320 },
+        fireExit: { x: 500, y: 240 },
+        waterExit: { x: 500, y: 320 },
+        platforms: [
+            { x: 0, y: 360, w: 600, h: 40 },      // Full ground
+            { x: 400, y: 280, w: 200, h: 20 },    // Wide upper platform
+        ],
+        firePools: [],
+        waterPools: []
+    },
+    // Level 3: Medium - two platforms, still no hazards
+    {
+        fireStart: { x: 50, y: 320 },
+        waterStart: { x: 100, y: 320 },
+        fireExit: { x: 500, y: 160 },
         waterExit: { x: 500, y: 240 },
         platforms: [
-            { x: 0, y: 360, w: 600, h: 40 },      // Ground
-            { x: 480, y: 280, w: 120, h: 20 },    // Upper platform for water exit
-            { x: 300, y: 320, w: 100, h: 20 },    // Middle step
+            { x: 0, y: 360, w: 600, h: 40 },      // Full ground
+            { x: 350, y: 280, w: 250, h: 20 },    // Lower platform
+            { x: 400, y: 200, w: 200, h: 20 },    // Upper platform
         ],
-        firePools: [
-            { x: 200, y: 350, w: 60, h: 10 }      // Small fire pool
-        ],
-        waterPools: [
-            { x: 400, y: 350, w: 60, h: 10 }      // Small water pool
-        ]
-    },
-    // Level 2: Jumping required
-    {
-        fireStart: { x: 50, y: 320 },
-        waterStart: { x: 50, y: 200 },
-        fireExit: { x: 520, y: 320 },
-        waterExit: { x: 520, y: 120 },
-        platforms: [
-            { x: 0, y: 360, w: 600, h: 40 },      // Ground
-            { x: 0, y: 240, w: 150, h: 20 },      // Left upper platform
-            { x: 200, y: 200, w: 100, h: 20 },    // Middle upper
-            { x: 350, y: 160, w: 250, h: 20 },    // Right upper
-            { x: 250, y: 320, w: 80, h: 20 },     // Lower step
-        ],
-        firePools: [
-            { x: 150, y: 350, w: 80, h: 10 }
-        ],
-        waterPools: [
-            { x: 370, y: 350, w: 80, h: 10 }
-        ]
-    },
-    // Level 3: More complex
-    {
-        fireStart: { x: 50, y: 120 },
-        waterStart: { x: 520, y: 120 },
-        fireExit: { x: 520, y: 320 },
-        waterExit: { x: 50, y: 320 },
-        platforms: [
-            { x: 0, y: 360, w: 600, h: 40 },      // Ground
-            { x: 0, y: 160, w: 120, h: 20 },      // Top left
-            { x: 480, y: 160, w: 120, h: 20 },    // Top right
-            { x: 200, y: 200, w: 200, h: 20 },    // Middle platform
-            { x: 100, y: 280, w: 100, h: 20 },    // Lower left
-            { x: 400, y: 280, w: 100, h: 20 },    // Lower right
-        ],
-        firePools: [
-            { x: 0, y: 350, w: 100, h: 10 },
-            { x: 250, y: 350, w: 100, h: 10 }
-        ],
-        waterPools: [
-            { x: 500, y: 350, w: 100, h: 10 },
-            { x: 150, y: 350, w: 80, h: 10 }
-        ]
+        firePools: [],
+        waterPools: []
     }
 ];
 
@@ -103,14 +81,34 @@ class Character {
         this.atExit = false;
         this.movingLeft = false;
         this.movingRight = false;
+        this.targetX = null; // For fixed distance movement
+    }
+
+    // Move a fixed distance (positive = right, negative = left)
+    moveFixed(distance) {
+        this.targetX = this.x + distance;
+        // Clamp to screen bounds
+        if (this.targetX < 0) this.targetX = 0;
+        if (this.targetX + this.width > CANVAS_WIDTH) this.targetX = CANVAS_WIDTH - this.width;
     }
 
     update() {
         // Apply gravity
         this.velY += GRAVITY;
 
-        // Apply horizontal movement
-        if (this.movingLeft) {
+        // Apply horizontal movement - fixed distance takes priority
+        if (this.targetX !== null) {
+            const diff = this.targetX - this.x;
+            if (Math.abs(diff) < 3) {
+                // Reached target
+                this.x = this.targetX;
+                this.targetX = null;
+                this.velX = 0;
+            } else {
+                // Move toward target
+                this.velX = diff > 0 ? MOVE_SPEED : -MOVE_SPEED;
+            }
+        } else if (this.movingLeft) {
             this.velX = -MOVE_SPEED;
         } else if (this.movingRight) {
             this.velX = MOVE_SPEED;
@@ -218,11 +216,53 @@ function initGame() {
     document.getElementById('next-level-button').addEventListener('click', nextLevel);
     document.getElementById('play-again-button').addEventListener('click', playAgain);
 
-    // Set up speech recognition callback
+    // Set up speech recognition callback (voice controls Watergirl only)
     setCommandCallback(handleVoiceCommand);
+
+    // Set up keyboard controls for Fireboy (WASD)
+    setupKeyboardControls();
 
     // Draw initial state
     drawStartScreen();
+}
+
+// Keyboard controls for Fireboy
+function setupKeyboardControls() {
+    document.addEventListener('keydown', (e) => {
+        if (!gameRunning || !fireboy) return;
+        
+        switch (e.key.toLowerCase()) {
+            case 'w':
+            case 'arrowup':
+                fireboy.jump();
+                break;
+            case 'a':
+            case 'arrowleft':
+                fireboy.movingLeft = true;
+                fireboy.movingRight = false;
+                break;
+            case 'd':
+            case 'arrowright':
+                fireboy.movingRight = true;
+                fireboy.movingLeft = false;
+                break;
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (!gameRunning || !fireboy) return;
+        
+        switch (e.key.toLowerCase()) {
+            case 'a':
+            case 'arrowleft':
+                fireboy.movingLeft = false;
+                break;
+            case 'd':
+            case 'arrowright':
+                fireboy.movingRight = false;
+                break;
+        }
+    });
 }
 
 // Draw start screen
@@ -308,18 +348,21 @@ function playAgain() {
 }
 
 // Handle voice commands
+// Fixed movement distance (in pixels)
+const MOVE_DISTANCE = 50;
+
 function handleVoiceCommand(command) {
     if (!gameRunning) return;
 
     const { character, action } = command;
 
-    let target = null;
-    if (character === 'fire') {
-        target = fireboy;
-    } else if (character === 'water') {
-        target = watergirl;
+    // Voice ONLY controls Watergirl now (Fireboy is keyboard-controlled)
+    if (character !== 'water' && character !== null) {
+        updateCommandDisplay('Use WASD for 🔥');
+        return;
     }
 
+    let target = watergirl;
     if (!target) return;
 
     switch (action) {
@@ -327,16 +370,27 @@ function handleVoiceCommand(command) {
             target.jump();
             break;
         case 'left':
-            target.movingLeft = true;
-            target.movingRight = false;
+            // Move fixed distance left
+            target.moveFixed(-MOVE_DISTANCE);
             break;
         case 'right':
-            target.movingRight = true;
-            target.movingLeft = false;
+            // Move fixed distance right
+            target.moveFixed(MOVE_DISTANCE);
+            break;
+        case 'left-jump':
+            // Jump and move left
+            target.jump();
+            target.moveFixed(-MOVE_DISTANCE);
+            break;
+        case 'right-jump':
+            // Jump and move right
+            target.jump();
+            target.moveFixed(MOVE_DISTANCE);
             break;
         case 'stop':
             target.movingLeft = false;
             target.movingRight = false;
+            target.targetX = null;
             break;
     }
 }

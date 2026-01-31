@@ -1,161 +1,182 @@
-// Speech Recognition Module for Voice-Controlled Fireboy & Watergirl
+// GCP Speech-to-Text Module for Voice-Controlled Fireboy & Watergirl
+// Uses WebSocket to stream audio to GCP via our backend server
 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-let recognition = null;
+let ws = null;
+let mediaRecorder = null;
+let audioStream = null;
 let isListening = false;
 let onCommandCallback = null;
 
-// Initialize speech recognition
-function initSpeechRecognition() {
-    if (!SpeechRecognition) {
-        console.error('Speech recognition not supported in this browser');
-        alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
+const WS_URL = 'ws://localhost:3000';
+
+// Initialize speech recognition via GCP
+async function initSpeechRecognition() {
+    console.log('🎤 Initializing GCP Speech-to-Text...');
+    
+    try {
+        // Request microphone access
+        audioStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                channelCount: 1,
+                sampleRate: 48000,
+                echoCancellation: true,
+                noiseSuppression: true
+            } 
+        });
+        console.log('✅ Microphone access granted');
+        return true;
+    } catch (err) {
+        console.error('❌ Microphone access denied:', err);
+        alert('Microphone access denied. Please allow microphone access to use voice controls.');
         return false;
     }
+}
 
-    recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    recognition.onstart = function() {
-        isListening = true;
-        updateMicStatus(true);
-        console.log('Speech recognition started');
-    };
-
-    recognition.onend = function() {
-        console.log('Speech recognition ended');
-        if (isListening) {
-            try {
-                recognition.start();
-            } catch (e) {
-                console.log('Recognition restart error:', e);
+// Connect to WebSocket server
+function connectWebSocket() {
+    return new Promise((resolve, reject) => {
+        console.log('🔌 Connecting to speech server...');
+        
+        ws = new WebSocket(WS_URL);
+        
+        ws.onopen = () => {
+            console.log('✅ Connected to speech server');
+            resolve(true);
+        };
+        
+        ws.onclose = () => {
+            console.log('📴 Disconnected from speech server');
+            if (isListening) {
+                // Try to reconnect
+                setTimeout(() => {
+                    if (isListening) {
+                        connectWebSocket().then(() => startRecording());
+                    }
+                }, 1000);
             }
-        } else {
+        };
+        
+        ws.onerror = (err) => {
+            console.error('❌ WebSocket error:', err);
             updateMicStatus(false);
+            reject(err);
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.error) {
+                    console.error('❌ Server error:', data.error);
+                    return;
+                }
+                
+                const { transcript, isFinal, confidence } = data;
+                
+                // Update display
+                updateRawTranscript(transcript + (isFinal ? ' ✓' : ' ...'));
+                
+                if (isFinal && transcript.trim()) {
+                    console.log(`🎯 Final: "${transcript}" (${(confidence * 100).toFixed(0)}%)`);
+                    handleCommand(transcript.trim().toLowerCase());
+                }
+            } catch (err) {
+                console.error('Error parsing message:', err);
+            }
+        };
+    });
+}
+
+// Start recording and streaming
+function startRecording() {
+    if (!audioStream || !ws || ws.readyState !== WebSocket.OPEN) {
+        console.error('Cannot start recording: not ready');
+        return;
+    }
+    
+    // Use MediaRecorder to capture audio
+    mediaRecorder = new MediaRecorder(audioStream, {
+        mimeType: 'audio/webm;codecs=opus'
+    });
+    
+    mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(event.data);
         }
     };
-
-    recognition.onerror = function(event) {
-        console.error('Speech recognition error:', event.error);
-        if (event.error === 'not-allowed') {
-            alert('Microphone access denied. Please allow microphone access to use voice controls.');
-            stopListening();
-        } else if (event.error === 'no-speech') {
-            console.log('No speech detected, continuing...');
-        }
-    };
-
-    recognition.onresult = function(event) {
-        const lastResult = event.results[event.results.length - 1];
-        if (lastResult.isFinal) {
-            const transcript = lastResult[0].transcript.trim().toLowerCase();
-            console.log('Heard:', transcript);
-            handleCommand(transcript);
-        }
-    };
-
-    return true;
+    
+    // Send audio chunks every 250ms for low latency
+    mediaRecorder.start(250);
+    console.log('🎙️ Recording started');
 }
 
 // Handle recognized command
 function handleCommand(text) {
-    let character = null;
     let action = null;
 
-    // Show raw transcript for debugging
-    updateRawTranscript(text);
+    console.log('🎯 Processing:', text);
 
-    // Detect character - many variations for misheard words
-    const fireWords = ['fire', 'fired', 'fir', 'fair', 'far', 'for', 'four', 'red', 'boy', 'buyer', 'higher', 'wire', 'tire'];
-    const waterWords = ['water', 'waiter', 'daughter', 'walter', 'what her', 'wader', 'blue', 'girl', 'grill', 'blur', 'glue'];
-
-    for (const word of fireWords) {
-        if (text.includes(word)) {
-            character = 'fire';
-            break;
-        }
+    // Check for combo commands first (direction + jump)
+    const hasJump = text.includes('jump') || text.includes('up') || text.includes('hop') || text.includes('and jump');
+    const hasLeft = text.includes('left');
+    const hasRight = text.includes('right') || text.includes('write');
+    
+    // Combo: right + jump
+    if (hasRight && hasJump) {
+        action = 'right-jump';
     }
-    if (!character) {
-        for (const word of waterWords) {
-            if (text.includes(word)) {
-                character = 'water';
-                break;
-            }
-        }
+    // Combo: left + jump
+    else if (hasLeft && hasJump) {
+        action = 'left-jump';
     }
-
-    // Detect action - many variations
-    const jumpWords = ['up', 'jump', 'hop', 'app', 'hub', 'junk', 'dump', 'bump', 'cup', 'pup', 'yup', 'uhp'];
-    const leftWords = ['left', 'laugh', 'lift', 'loft', 'let', 'west'];
-    const rightWords = ['right', 'write', 'ride', 'light', 'might', 'bright', 'east', 'rite'];
-    const stopWords = ['stop', 'top', 'stomp', 'stock', 'stuff', 'halt', 'hold', 'wait', 'pause', 'still'];
-
-    for (const word of jumpWords) {
-        if (text.includes(word)) {
-            action = 'jump';
-            break;
-        }
+    // Just jump
+    else if (hasJump) {
+        action = 'jump';
     }
-    if (!action) {
-        for (const word of leftWords) {
-            if (text.includes(word)) {
-                action = 'left';
-                break;
-            }
-        }
+    // Just left (moves fixed distance)
+    else if (hasLeft) {
+        action = 'left';
     }
-    if (!action) {
-        for (const word of rightWords) {
-            if (text.includes(word)) {
-                action = 'right';
-                break;
-            }
-        }
+    // Just right (moves fixed distance)
+    else if (hasRight) {
+        action = 'right';
     }
-    if (!action) {
-        for (const word of stopWords) {
-            if (text.includes(word)) {
-                action = 'stop';
-                break;
-            }
-        }
+    // Stop
+    else if (text.includes('stop') || text.includes('halt') || text.includes('wait')) {
+        action = 'stop';
     }
 
-    if (character && action && onCommandCallback) {
-        const command = { character, action };
+    if (action && onCommandCallback) {
+        console.log('✅ Action:', action);
+        const command = { character: 'water', action };
         onCommandCallback(command);
-        updateCommandDisplay(`${character} ${action}`);
-    } else if (character || action) {
-        // Partial match - show what was understood
-        updateCommandDisplay(`??? (${character || '?'} ${action || '?'})`);
-    }
-}
-
-// Update raw transcript display
-function updateRawTranscript(text) {
-    const rawDisplay = document.getElementById('raw-transcript');
-    if (rawDisplay) {
-        rawDisplay.textContent = `"${text}"`;
+        updateCommandDisplay(`💧 ${action.toUpperCase()}`);
+    } else {
+        console.log('❓ Unknown command:', text);
+        updateCommandDisplay(`❓ "${text}"`);
     }
 }
 
 // Start listening for commands
-function startListening() {
-    if (!recognition) {
-        if (!initSpeechRecognition()) {
+async function startListening() {
+    if (isListening) return true;
+    
+    // Initialize if needed
+    if (!audioStream) {
+        if (!await initSpeechRecognition()) {
             return false;
         }
     }
-
+    
     try {
+        await connectWebSocket();
+        startRecording();
         isListening = true;
-        recognition.start();
+        updateMicStatus(true);
         return true;
-    } catch (e) {
-        console.error('Error starting recognition:', e);
+    } catch (err) {
+        console.error('Failed to start listening:', err);
+        alert('Failed to connect to speech server. Make sure to run: cd server && npm install && npm start');
         return false;
     }
 }
@@ -163,14 +184,18 @@ function startListening() {
 // Stop listening
 function stopListening() {
     isListening = false;
-    if (recognition) {
-        try {
-            recognition.stop();
-        } catch (e) {
-            console.log('Error stopping recognition:', e);
-        }
+    
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
     }
+    
+    if (ws) {
+        ws.close();
+        ws = null;
+    }
+    
     updateMicStatus(false);
+    console.log('🛑 Stopped listening');
 }
 
 // Set callback for when commands are recognized
@@ -184,25 +209,34 @@ function updateMicStatus(listening) {
     const micText = document.getElementById('mic-text');
 
     if (listening) {
-        micStatus.classList.add('listening');
-        micText.textContent = 'Listening...';
+        micStatus?.classList.add('listening');
+        if (micText) micText.textContent = '🟢 GCP Listening...';
     } else {
-        micStatus.classList.remove('listening');
-        micText.textContent = 'Not listening';
+        micStatus?.classList.remove('listening');
+        if (micText) micText.textContent = 'Not listening';
     }
 }
 
 // Update command display
 function updateCommandDisplay(command) {
     const commandValue = document.getElementById('command-value');
-    commandValue.textContent = command || 'None';
-
-    commandValue.classList.remove('active');
-    void commandValue.offsetWidth;
-    commandValue.classList.add('active');
+    if (commandValue) {
+        commandValue.textContent = command || 'None';
+        commandValue.classList.remove('active');
+        void commandValue.offsetWidth;
+        commandValue.classList.add('active');
+    }
 }
 
-// Check if speech recognition is supported
+// Update raw transcript display
+function updateRawTranscript(text) {
+    const rawDisplay = document.getElementById('raw-transcript');
+    if (rawDisplay) {
+        rawDisplay.textContent = `"${text}"`;
+    }
+}
+
+// Check if speech is supported
 function isSpeechSupported() {
-    return !!SpeechRecognition;
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 }
