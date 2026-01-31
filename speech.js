@@ -65,28 +65,80 @@ function handleCommand(text) {
     let character = null;
     let action = null;
 
-    // Detect character
-    if (text.includes('fire') || text.includes('red') || text.includes('boy')) {
-        character = 'fire';
-    } else if (text.includes('water') || text.includes('blue') || text.includes('girl')) {
-        character = 'water';
+    // Show raw transcript for debugging
+    updateRawTranscript(text);
+
+    // Detect character - many variations for misheard words
+    const fireWords = ['fire', 'fired', 'fir', 'fair', 'far', 'for', 'four', 'red', 'boy', 'buyer', 'higher', 'wire', 'tire'];
+    const waterWords = ['water', 'waiter', 'daughter', 'walter', 'what her', 'wader', 'blue', 'girl', 'grill', 'blur', 'glue'];
+
+    for (const word of fireWords) {
+        if (text.includes(word)) {
+            character = 'fire';
+            break;
+        }
+    }
+    if (!character) {
+        for (const word of waterWords) {
+            if (text.includes(word)) {
+                character = 'water';
+                break;
+            }
+        }
     }
 
-    // Detect action
-    if (text.includes('up') || text.includes('jump') || text.includes('hop')) {
-        action = 'jump';
-    } else if (text.includes('left')) {
-        action = 'left';
-    } else if (text.includes('right') || text.includes('write')) {
-        action = 'right';
-    } else if (text.includes('stop') || text.includes('halt')) {
-        action = 'stop';
+    // Detect action - many variations
+    const jumpWords = ['up', 'jump', 'hop', 'app', 'hub', 'junk', 'dump', 'bump', 'cup', 'pup', 'yup', 'uhp'];
+    const leftWords = ['left', 'laugh', 'lift', 'loft', 'let', 'west'];
+    const rightWords = ['right', 'write', 'ride', 'light', 'might', 'bright', 'east', 'rite'];
+    const stopWords = ['stop', 'top', 'stomp', 'stock', 'stuff', 'halt', 'hold', 'wait', 'pause', 'still'];
+
+    for (const word of jumpWords) {
+        if (text.includes(word)) {
+            action = 'jump';
+            break;
+        }
+    }
+    if (!action) {
+        for (const word of leftWords) {
+            if (text.includes(word)) {
+                action = 'left';
+                break;
+            }
+        }
+    }
+    if (!action) {
+        for (const word of rightWords) {
+            if (text.includes(word)) {
+                action = 'right';
+                break;
+            }
+        }
+    }
+    if (!action) {
+        for (const word of stopWords) {
+            if (text.includes(word)) {
+                action = 'stop';
+                break;
+            }
+        }
     }
 
     if (character && action && onCommandCallback) {
         const command = { character, action };
         onCommandCallback(command);
         updateCommandDisplay(`${character} ${action}`);
+    } else if (character || action) {
+        // Partial match - show what was understood
+        updateCommandDisplay(`??? (${character || '?'} ${action || '?'})`);
+    }
+}
+
+// Update raw transcript display
+function updateRawTranscript(text) {
+    const rawDisplay = document.getElementById('raw-transcript');
+    if (rawDisplay) {
+        rawDisplay.textContent = `"${text}"`;
     }
 }
 

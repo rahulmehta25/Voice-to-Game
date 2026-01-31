@@ -119,6 +119,24 @@ body {
     animation: commandFlash 0.3s ease;
 }
 
+#heard-display {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 6px 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+}
+
+#heard-label {
+    color: #666;
+    margin-right: 8px;
+}
+
+#raw-transcript {
+    color: #ffd700;
+    font-style: italic;
+}
+
 @keyframes commandFlash {
     0%, 100% {
         color: #03a9f4;
