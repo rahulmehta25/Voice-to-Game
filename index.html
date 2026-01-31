@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice-Controlled Pacman</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <header id="game-header">
+            <h1 id="game-title">Voice-Controlled Pacman</h1>
+            <div id="status-bar">
+                <div id="score-display">
+                    <span id="score-label">Score:</span>
+                    <span id="score-value">0</span>
+                </div>
+                <div id="mic-status">
+                    <span id="mic-icon">🎤</span>
+                    <span id="mic-text">Not listening</span>
+                </div>
+            </div>
+        </header>
+
+        <main id="game-main">
+            <div id="command-display">
+                <span id="command-label">Last command:</span>
+                <span id="command-value">None</span>
+            </div>
+
+            <canvas id="game-canvas" width="400" height="400"></canvas>
+
+            <div id="game-overlay" class="visible">
+                <div id="overlay-content">
+                    <h2 id="overlay-title">Voice-Controlled Pacman</h2>
+                    <p id="overlay-instructions">Control Pacman with your voice!</p>
+                    <p id="overlay-commands">Say: "up", "down", "left", "right", or "stop"</p>
+                    <button id="start-button">Start Game</button>
+                </div>
+            </div>
+
+            <div id="game-over-overlay" class="hidden">
+                <div id="game-over-content">
+                    <h2 id="game-over-title">Game Over</h2>
+                    <p id="final-score-text">Final Score: <span id="final-score">0</span></p>
+                    <button id="restart-button">Play Again</button>
+                </div>
+            </div>
+
+            <div id="win-overlay" class="hidden">
+                <div id="win-content">
+                    <h2 id="win-title">You Win!</h2>
+                    <p id="win-score-text">Final Score: <span id="win-score">0</span></p>
+                    <button id="win-restart-button">Play Again</button>
+                </div>
+            </div>
+        </main>
+
+        <footer id="game-footer">
+            <p id="footer-text">Speak clearly into your microphone to control Pacman</p>
+        </footer>
+    </div>
+
+    <script src="speech.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
